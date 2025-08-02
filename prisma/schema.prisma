@@ -24,9 +24,9 @@ model Tournament {
 model Player {
   id            String   @id @default(cuid())
   name          String
-  email         String
+  email         String?
   gender        String   // 'male' | 'female' | 'other'
-  age           Int
+  age           Int?
   paymentStatus String   // 'paid' | 'unpaid'
   teamId        String
   team          Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)

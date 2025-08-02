@@ -84,6 +84,62 @@ app.post('/api/tournaments/:tournamentId/teams', async (req, res) => {
   }
 });
 
+app.put('/api/teams/:teamId', async (req, res) => {
+  try {
+    const { name, players } = req.body;
+    const teamId = req.params.teamId;
+
+    // Update team and replace players
+    const team = await prisma.team.update({
+      where: { id: teamId },
+      data: {
+        name,
+        players: {
+          deleteMany: {},
+          create: players,
+        },
+      },
+      include: { players: true },
+    });
+    res.json(team);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update team' });
+  }
+});
+
+app.delete('/api/teams/:teamId', async (req, res) => {
+  try {
+    const teamId = req.params.teamId;
+    
+    // Check if team is in any matches
+    const matchesAsTeamA = await prisma.match.findMany({
+      where: { teamAId: teamId },
+    });
+    
+    const matchesAsTeamB = await prisma.match.findMany({
+      where: { teamBId: teamId },
+    });
+    
+    const totalMatches = matchesAsTeamA.length + matchesAsTeamB.length;
+    
+    if (totalMatches > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete team that is participating in matches',
+        friendlyMessage: `This team cannot be deleted because it is scheduled for ${totalMatches} match${totalMatches === 1 ? '' : 'es'}. Please remove the team from all matches first.`
+      });
+    }
+    
+    // Delete the team (cascade will delete players automatically)
+    await prisma.team.delete({
+      where: { id: teamId },
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete team' });
+  }
+});
+
 // Matches
 app.get('/api/tournaments/:tournamentId/matches', async (req, res) => {
   try {
