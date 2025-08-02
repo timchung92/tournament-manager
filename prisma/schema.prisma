@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Tournament {
+  id                String    @id @default(cuid())
+  name              String
+  seedMatchesPerTeam Int      @default(3)
+  totalCourts       Int      @default(6)
+  createdAt         DateTime  @default(now())
+  teams             Team[]
+  matches           Match[]
+  bracketMatches    BracketMatch[]
+}
+
+model Player {
+  id            String   @id @default(cuid())
+  name          String
+  email         String
+  gender        String   // 'male' | 'female' | 'other'
+  age           Int
+  paymentStatus String   // 'paid' | 'unpaid'
+  teamId        String
+  team          Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+}
+
+model Team {
+  id           String        @id @default(cuid())
+  name         String
+  tournamentId String
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  players      Player[]
+  matchesAsTeamA Match[]     @relation("TeamA")
+  matchesAsTeamB Match[]     @relation("TeamB")
+  createdAt    DateTime      @default(now())
+}
+
+model Match {
+  id           String        @id @default(cuid())
+  tournamentId String
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  teamAId      String
+  teamBId      String
+  teamA        Team          @relation("TeamA", fields: [teamAId], references: [id])
+  teamB        Team          @relation("TeamB", fields: [teamBId], references: [id])
+  roundType    String        // 'seed' | 'playoff'
+  scheduledCourt Int?
+  teamAScore   Int?
+  teamBScore   Int?
+  completedAt  DateTime?
+  startTime    DateTime?
+  createdAt    DateTime      @default(now())
+}
+
+model BracketMatch {
+  id                      String        @id @default(cuid())
+  tournamentId            String
+  tournament              Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  round                   Int
+  matchNumber             Int
+  teamAId                 String?
+  teamBId                 String?
+  teamAScore              Int?
+  teamBScore              Int?
+  completedAt             DateTime?
+  winnerAdvancesToMatchId String?
+  createdAt               DateTime      @default(now())
+}
