@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Button } from '../components/ui/button';
 
 interface PlayerFormData {
   name: string;
@@ -75,6 +76,14 @@ function RegisterTeamPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
+      <div className="mb-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(`/tournament/${tournamentId}`)}
+        >
+          ← Back to Dashboard
+        </Button>
+      </div>
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Register Team</h1>
       
       <form onSubmit={handleSubmit} className="space-y-8 bg-white shadow rounded-lg p-6">
@@ -174,20 +183,19 @@ function RegisterTeamPage() {
         ))}
 
         <div className="flex justify-end space-x-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => navigate(`/tournament/${tournamentId}`)}
-            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             disabled={submitting}
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
             {submitting ? 'Registering...' : 'Register Team'}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

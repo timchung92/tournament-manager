@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Match, Team, Tournament } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 
 function SeedRoundPage() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
+  const navigate = useNavigate();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -129,6 +130,14 @@ function SeedRoundPage() {
 
   return (
     <div className="space-y-6">
+      <div className="mb-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(`/tournament/${tournamentId}`)}
+        >
+          ← Back to Dashboard
+        </Button>
+      </div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Seed Round</h1>

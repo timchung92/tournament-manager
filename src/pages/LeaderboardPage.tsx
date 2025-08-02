@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { TeamStats } from '../types';
+import { Button } from '../components/ui/button';
 
 function LeaderboardPage() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
+  const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState<TeamStats[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,6 +35,14 @@ function LeaderboardPage() {
 
   return (
     <div className="space-y-6">
+      <div className="mb-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(`/tournament/${tournamentId}`)}
+        >
+          ← Back to Dashboard
+        </Button>
+      </div>
       <h1 className="text-3xl font-bold text-gray-900">Leaderboard</h1>
       
       {leaderboard.length === 0 ? (
