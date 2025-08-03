@@ -19,6 +19,7 @@ model Tournament {
   teams             Team[]
   matches           Match[]
   bracketMatches    BracketMatch[]
+  courts            Court[]
 }
 
 model Player {
@@ -74,4 +75,15 @@ model BracketMatch {
   completedAt             DateTime?
   winnerAdvancesToMatchId String?
   createdAt               DateTime      @default(now())
+}
+
+model Court {
+  id           String     @id @default(cuid())
+  number       Int
+  name         String?
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  
+  @@unique([tournamentId, number])
 }

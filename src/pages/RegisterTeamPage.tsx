@@ -1,12 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+
 import {
   Sheet,
   SheetContent,
@@ -15,6 +10,14 @@ import {
 } from "../components/ui/sheet";
 import { Badge } from "../components/ui/badge";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -22,7 +25,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "../components/ui/dialog";
-import { Trash2, ChevronDown } from "lucide-react";
+import { Trash2, ChevronDown, Edit, Search, ChevronUp } from "lucide-react";
 
 interface Player {
   id: string;
@@ -59,6 +62,11 @@ function RegisterTeamPage() {
   const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showOptionalFields, setShowOptionalFields] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"teamName" | "player1" | "player2">(
+    "teamName"
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Form state
   const [teamName, setTeamName] = useState("");
@@ -146,12 +154,11 @@ function RegisterTeamPage() {
       age: p2.age ? p2.age.toString() : "",
       paymentStatus: p2.paymentStatus,
     });
-    
+
     // Show optional fields if any player has email or age data
-    const hasOptionalData = 
-      p1.email || p1.age || p2.email || p2.age;
+    const hasOptionalData = !!(p1.email || p1.age || p2.email || p2.age);
     setShowOptionalFields(hasOptionalData);
-    
+
     setSheetOpen(true);
   };
 
@@ -219,6 +226,51 @@ function RegisterTeamPage() {
     setter((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleSort = (column: "teamName" | "player1" | "player2") => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortOrder("asc");
+    }
+  };
+
+  const filteredAndSortedTeams = teams
+    .filter((team) => {
+      if (!searchTerm) return true;
+      const search = searchTerm.toLowerCase();
+      return (
+        team.name.toLowerCase().includes(search) ||
+        team.players.some((player) =>
+          player.name.toLowerCase().includes(search)
+        )
+      );
+    })
+    .sort((a, b) => {
+      let aValue: string;
+      let bValue: string;
+
+      switch (sortBy) {
+        case "teamName":
+          aValue = a.name;
+          bValue = b.name;
+          break;
+        case "player1":
+          aValue = a.players[0]?.name || "";
+          bValue = b.players[0]?.name || "";
+          break;
+        case "player2":
+          aValue = a.players[1]?.name || "";
+          bValue = b.players[1]?.name || "";
+          break;
+        default:
+          return 0;
+      }
+
+      const comparison = aValue.localeCompare(bValue);
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
   const openDeleteDialog = (team: Team) => {
     setTeamToDelete(team);
     setDeleteDialogOpen(true);
@@ -270,78 +322,137 @@ function RegisterTeamPage() {
         </Button>
       </div>
 
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Team Management</h1>
         <Button onClick={openAddSheet}>Add Team</Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {teams.map((team) => (
-          <Card key={team.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{team.name}</CardTitle>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditSheet(team)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => openDeleteDialog(team)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {team.players.map((player, index) => (
-                  <div
-                    key={player.id}
-                    className="border-b pb-3 last:border-b-0"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-medium">{player.name}</p>
-                        {player.email && (
-                          <p className="text-sm text-gray-600">
-                            {player.email}
-                          </p>
-                        )}
-                      </div>
-                      <Badge
-                        className={
-                          player.paymentStatus === "paid"
-                            ? "bg-green-100 text-green-800 hover:bg-green-100"
-                            : "bg-gray-100 text-gray-800 hover:bg-gray-100"
-                        }
-                      >
-                        {player.paymentStatus}
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {player.gender}
-                      {player.age && ` • Age ${player.age}`}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <input
+            type="text"
+            placeholder="Search by team name or player name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
       </div>
 
-      {teams.length === 0 && (
+      {/* Table */}
+      {teams.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 mb-4">No teams registered yet</p>
           <Button onClick={openAddSheet}>Register First Team</Button>
+        </div>
+      ) : (
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <button
+                    onClick={() => handleSort("teamName")}
+                    className="flex items-center space-x-1 font-medium text-left hover:text-gray-900"
+                  >
+                    <span>Team Name</span>
+                    {sortBy === "teamName" &&
+                      (sortOrder === "asc" ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      ))}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button
+                    onClick={() => handleSort("player1")}
+                    className="flex items-center space-x-1 font-medium text-left hover:text-gray-900"
+                  >
+                    <span>Player 1</span>
+                    {sortBy === "player1" &&
+                      (sortOrder === "asc" ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      ))}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button
+                    onClick={() => handleSort("player2")}
+                    className="flex items-center space-x-1 font-medium text-left hover:text-gray-900"
+                  >
+                    <span>Player 2</span>
+                    {sortBy === "player2" &&
+                      (sortOrder === "asc" ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      ))}
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAndSortedTeams.map((team) => (
+                <TableRow key={team.id}>
+                  <TableCell className="font-medium">{team.name}</TableCell>
+                  {team.players.map((player, index) => (
+                    <TableCell key={player.id}>
+                      <div>
+                        <div className="font-medium">{player.name}</div>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge
+                            className={
+                              player.paymentStatus === "paid"
+                                ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                : "bg-gray-100 text-gray-800 hover:bg-gray-100"
+                            }
+                          >
+                            {player.paymentStatus}
+                          </Badge>
+                          <span className="text-sm text-gray-500">
+                            {player.gender}
+                            {player.age && ` • ${player.age}`}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right">
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditSheet(team)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openDeleteDialog(team)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {filteredAndSortedTeams.length === 0 && teams.length > 0 && (
+        <div className="text-center py-8">
+          <p className="text-gray-500">No teams match your search criteria</p>
         </div>
       )}
 

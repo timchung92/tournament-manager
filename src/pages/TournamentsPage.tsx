@@ -5,6 +5,8 @@ import { Tournament } from '../types';
 function TournamentsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [newTournamentName, setNewTournamentName] = useState('');
+  const [seedMatchesPerTeam, setSeedMatchesPerTeam] = useState(3);
+  const [totalCourts, setTotalCourts] = useState(6);
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
@@ -29,11 +31,17 @@ function TournamentsPage() {
       const response = await fetch('/api/tournaments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newTournamentName }),
+        body: JSON.stringify({ 
+          name: newTournamentName,
+          seedMatchesPerTeam,
+          totalCourts
+        }),
       });
       
       if (response.ok) {
         setNewTournamentName('');
+        setSeedMatchesPerTeam(3);
+        setTotalCourts(6);
         setIsCreating(false);
         fetchTournaments();
       }
@@ -79,6 +87,41 @@ function TournamentsPage() {
                 />
               </div>
             </div>
+            
+            <div className="mt-4">
+              <label htmlFor="seed-matches" className="block text-sm font-medium text-gray-700">
+                Seed Matches Per Team
+              </label>
+              <div className="mt-1">
+                <input
+                  type="number"
+                  id="seed-matches"
+                  min="1"
+                  max="10"
+                  value={seedMatchesPerTeam}
+                  onChange={(e) => setSeedMatchesPerTeam(parseInt(e.target.value))}
+                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-4">
+              <label htmlFor="total-courts" className="block text-sm font-medium text-gray-700">
+                Number of Courts
+              </label>
+              <div className="mt-1">
+                <input
+                  type="number"
+                  id="total-courts"
+                  min="1"
+                  max="20"
+                  value={totalCourts}
+                  onChange={(e) => setTotalCourts(parseInt(e.target.value))}
+                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+            
             <div className="mt-4 flex gap-3">
               <button
                 type="submit"
@@ -91,6 +134,8 @@ function TournamentsPage() {
                 onClick={() => {
                   setIsCreating(false);
                   setNewTournamentName('');
+                  setSeedMatchesPerTeam(3);
+                  setTotalCourts(6);
                 }}
                 className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >

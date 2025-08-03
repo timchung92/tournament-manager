@@ -15,11 +15,20 @@ export type Team = {
   createdAt: Date;
 };
 
+export type Court = {
+  id: string;
+  number: number;
+  name?: string;
+  tournamentId: string;
+  createdAt: Date;
+};
+
 export type Tournament = {
   id: string;
   name: string;
   seedMatchesPerTeam: number;
   totalCourts: number;
+  courts?: Court[];
   createdAt: Date;
 };
 

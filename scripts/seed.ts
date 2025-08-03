@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { generateSeedMatches } from '../src/utils/matchGenerator';
 
 const prisma = new PrismaClient();
 
@@ -16,31 +17,39 @@ async function main() {
 
   console.log(`Created tournament: ${tournament.name}`);
 
-  // Create teams with players
-  const teams = [
-    { name: "Thunder Strikers", players: [{ name: "John Smith", age: 35 }, { name: "Sarah Johnson", age: 32 }] },
-    { name: "Court Kings", players: [{ name: "Mike Davis", age: 42 }, { name: "Emily Wilson", age: 38 }] },
-    { name: "Net Ninjas", players: [{ name: "Chris Brown", age: 28 }, { name: "Jessica Lee", age: 30 }] },
-    { name: "Pickle Power", players: [{ name: "David Martinez", age: 45 }, { name: "Lisa Anderson", age: 41 }] },
-    { name: "Slam Squad", players: [{ name: "James Taylor", age: 33 }, { name: "Maria Garcia", age: 29 }] },
-    { name: "Rally Rebels", players: [{ name: "Robert White", age: 37 }, { name: "Jennifer Thomas", age: 34 }] },
-    { name: "Ace Avengers", players: [{ name: "William Harris", age: 40 }, { name: "Patricia Clark", age: 36 }] },
-    { name: "Dink Dynasty", players: [{ name: "Richard Lewis", age: 31 }, { name: "Susan Walker", age: 33 }] },
-    { name: "Spin Masters", players: [{ name: "Joseph Hall", age: 39 }, { name: "Karen Allen", age: 35 }] },
-    { name: "Baseline Bandits", players: [{ name: "Thomas Young", age: 44 }, { name: "Nancy King", age: 40 }] },
+  // Create teams with players (team names auto-generated from player names)
+  const teamPlayers = [
+    [{ name: "John Smith", gender: "male" }, { name: "Sarah Johnson", gender: "female" }],
+    [{ name: "Mike Davis", gender: "male" }, { name: "Emily Wilson", gender: "female" }],
+    [{ name: "Chris Brown", gender: "male" }, { name: "Jessica Lee", gender: "female" }],
+    [{ name: "David Martinez", gender: "male" }, { name: "Lisa Anderson", gender: "female" }],
+    [{ name: "James Taylor", gender: "male" }, { name: "Maria Garcia", gender: "female" }],
+    [{ name: "Robert White", gender: "male" }, { name: "Jennifer Thomas", gender: "female" }],
+    [{ name: "William Harris", gender: "male" }, { name: "Patricia Clark", gender: "female" }],
+    [{ name: "Richard Lewis", gender: "male" }, { name: "Susan Walker", gender: "female" }],
+    [{ name: "Joseph Hall", gender: "male" }, { name: "Karen Allen", gender: "female" }],
+    [{ name: "Thomas Young", gender: "male" }, { name: "Nancy King", gender: "female" }],
   ];
 
-  for (const teamData of teams) {
+  // Helper function to generate team name from player names
+  const generateTeamName = (player1Name: string, player2Name: string) => {
+    return `${player1Name.trim()} & ${player2Name.trim()}`;
+  };
+
+  for (const players of teamPlayers) {
+    const [player1, player2] = players;
+    const teamName = generateTeamName(player1.name, player2.name);
+    
     const team = await prisma.team.create({
       data: {
-        name: teamData.name,
+        name: teamName,
         tournamentId: tournament.id,
         players: {
-          create: teamData.players.map((player, index) => ({
+          create: players.map((player) => ({
             name: player.name,
-            email: `${player.name.toLowerCase().replace(' ', '.')}@example.com`,
-            gender: index === 0 ? 'male' : 'female',
-            age: player.age,
+            email: null, // Optional field left empty
+            gender: player.gender,
+            age: null, // Optional field left empty
             paymentStatus: Math.random() > 0.2 ? 'paid' : 'unpaid',
           })),
         },
@@ -57,22 +66,17 @@ async function main() {
     where: { tournamentId: tournament.id },
   });
 
-  const matches = [];
   const matchesPerTeam = tournament.seedMatchesPerTeam;
   
-  // Simple round-robin style generation
-  for (let round = 0; round < matchesPerTeam; round++) {
-    const shuffledTeams = [...allTeams].sort(() => Math.random() - 0.5);
-    
-    for (let i = 0; i < shuffledTeams.length - 1; i += 2) {
-      matches.push({
-        tournamentId: tournament.id,
-        teamAId: shuffledTeams[i].id,
-        teamBId: shuffledTeams[i + 1].id,
-        roundType: 'seed',
-      });
-    }
-  }
+  // Use proper match generation to avoid duplicates
+  const generatedMatches = generateSeedMatches(allTeams, matchesPerTeam);
+  
+  const matches = generatedMatches.map(match => ({
+    tournamentId: tournament.id,
+    teamAId: match.teamAId,
+    teamBId: match.teamBId,
+    roundType: 'seed' as const,
+  }));
 
   // Create all matches
   await prisma.match.createMany({

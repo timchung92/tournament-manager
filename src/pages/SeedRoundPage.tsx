@@ -1,13 +1,33 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Match, Team, Tournament } from '../types';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Match, Team, Tournament } from "../types";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 function SeedRoundPage() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
@@ -21,6 +41,15 @@ function SeedRoundPage() {
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [matchesPerTeam, setMatchesPerTeam] = useState(3);
+  const [editScoreModal, setEditScoreModal] = useState<{
+    match: Match | null;
+    teamAScore: string;
+    teamBScore: string;
+  }>({
+    match: null,
+    teamAScore: "",
+    teamBScore: "",
+  });
 
   useEffect(() => {
     if (tournamentId) {
@@ -41,12 +70,12 @@ function SeedRoundPage() {
         const matchesData = await matchesRes.json();
         const teamsData = await teamsRes.json();
         setTournament(tournamentData);
-        setMatches(matchesData.filter((m: Match) => m.roundType === 'seed'));
+        setMatches(matchesData.filter((m: Match) => m.roundType === "seed"));
         setTeams(teamsData);
         setMatchesPerTeam(tournamentData.seedMatchesPerTeam);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
@@ -54,7 +83,7 @@ function SeedRoundPage() {
 
   const handleGenerateClick = () => {
     if (teams.length < 2) {
-      alert('Need at least 2 teams to generate matches');
+      alert("Need at least 2 teams to generate matches");
       return;
     }
     setShowGenerateDialog(true);
@@ -63,21 +92,24 @@ function SeedRoundPage() {
   const generateSeedMatches = async () => {
     setGenerating(true);
     try {
-      const response = await fetch(`/api/tournaments/${tournamentId}/matches/generate-seed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchesPerTeam }),
-      });
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/matches/generate-seed`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ matchesPerTeam }),
+        }
+      );
 
       if (response.ok) {
         await fetchData();
         setShowGenerateDialog(false);
       } else {
-        alert('Failed to generate seed matches');
+        alert("Failed to generate seed matches");
       }
     } catch (error) {
-      console.error('Error generating matches:', error);
-      alert('Failed to generate seed matches');
+      console.error("Error generating matches:", error);
+      alert("Failed to generate seed matches");
     } finally {
       setGenerating(false);
     }
@@ -86,22 +118,61 @@ function SeedRoundPage() {
   const clearSeedRound = async () => {
     setClearing(true);
     try {
-      const response = await fetch(`/api/tournaments/${tournamentId}/matches/clear-seed`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/matches/clear-seed`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (response.ok) {
         await fetchData();
         setShowClearDialog(false);
       } else {
-        alert('Failed to clear seed round');
+        alert("Failed to clear seed round");
       }
     } catch (error) {
-      console.error('Error clearing seed round:', error);
-      alert('Failed to clear seed round');
+      console.error("Error clearing seed round:", error);
+      alert("Failed to clear seed round");
     } finally {
       setClearing(false);
     }
+  };
+
+  const updateMatchScore = async () => {
+    if (!editScoreModal.match) return;
+
+    try {
+      const response = await fetch(
+        `/api/matches/${editScoreModal.match.id}/score`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            teamAScore: parseInt(editScoreModal.teamAScore),
+            teamBScore: parseInt(editScoreModal.teamBScore),
+          }),
+        }
+      );
+
+      if (response.ok) {
+        setEditScoreModal({ match: null, teamAScore: "", teamBScore: "" });
+        await fetchData();
+      } else {
+        alert("Failed to update score");
+      }
+    } catch (error) {
+      console.error("Error updating score:", error);
+      alert("Failed to update score");
+    }
+  };
+
+  const openEditScoreModal = (match: any) => {
+    setEditScoreModal({
+      match,
+      teamAScore: match.teamAScore?.toString() || "",
+      teamBScore: match.teamBScore?.toString() || "",
+    });
   };
 
   if (loading) {
@@ -113,10 +184,16 @@ function SeedRoundPage() {
   }
 
   const hasMatches = matches.length > 0;
-  const hasStartedMatches = matches.some(m => m.scheduledCourt || m.completedAt);
-  const completedMatches = matches.filter(m => m.completedAt);
-  const inProgressMatches = matches.filter(m => m.scheduledCourt && !m.completedAt);
-  const pendingMatches = matches.filter(m => !m.scheduledCourt && !m.completedAt);
+  const hasStartedMatches = matches.some(
+    (m) => m.scheduledCourt || m.completedAt
+  );
+  const completedMatches = matches.filter((m) => m.completedAt);
+  const inProgressMatches = matches.filter(
+    (m) => m.scheduledCourt && !m.completedAt
+  );
+  const pendingMatches = matches.filter(
+    (m) => !m.scheduledCourt && !m.completedAt
+  );
 
   const getMatchStatus = (match: any) => {
     if (match.completedAt) {
@@ -130,13 +207,21 @@ function SeedRoundPage() {
 
   return (
     <div className="space-y-6">
-      <div className="mb-4">
+      <div className="mb-4 flex gap-2">
         <Button
           variant="ghost"
           onClick={() => navigate(`/tournament/${tournamentId}`)}
         >
           ← Back to Dashboard
         </Button>
+        {hasMatches && (
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/tournament/${tournamentId}/courts`)}
+          >
+            Manage Courts
+          </Button>
+        )}
       </div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -173,7 +258,9 @@ function SeedRoundPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Matches</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Matches
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{matches.length}</div>
@@ -181,26 +268,48 @@ function SeedRoundPage() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Completed
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{completedMatches.length}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {completedMatches.length}
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">In Progress</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                In Progress
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{inProgressMatches.length}</div>
+              <div className="text-2xl font-bold text-yellow-600">
+                {inProgressMatches.length}
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Pending
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-600">{pendingMatches.length}</div>
+              <div className="text-2xl font-bold text-gray-600">
+                {pendingMatches.length}
+              </div>
+              {pendingMatches.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate(`/tournament/${tournamentId}/courts`)}
+                  className="mt-2 text-xs"
+                >
+                  Assign to Courts
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -211,14 +320,19 @@ function SeedRoundPage() {
           <CardHeader>
             <CardTitle>No Seed Matches Generated</CardTitle>
             <CardDescription>
-              Generate seed matches to begin the tournament. Each team will play the configured number of matches.
+              Generate seed matches to begin the tournament. Each team will play
+              the configured number of matches.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {teams.length < 2 ? (
-              <p className="text-muted-foreground">Register at least 2 teams before generating matches.</p>
+              <p className="text-muted-foreground">
+                Register at least 2 teams before generating matches.
+              </p>
             ) : (
-              <p className="text-muted-foreground">Click "Generate Seed Matches" to create random pairings.</p>
+              <p className="text-muted-foreground">
+                Click "Generate Seed Matches" to create random pairings.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -238,29 +352,47 @@ function SeedRoundPage() {
                   <TableHead>Status</TableHead>
                   <TableHead>Court</TableHead>
                   <TableHead>Score</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {matches.map((match: any) => (
                   <TableRow key={match.id}>
-                    <TableCell className="font-medium">
-                      {match.teamA?.name} vs {match.teamB?.name}
-                    </TableCell>
                     <TableCell>
-                      {getMatchStatus(match)}
+                      <div className="font-medium">{match.teamA?.name}</div>
+                      <div className="text-xs text-muted-foreground">vs</div>
+                      <div className="font-medium">{match.teamB?.name}</div>
                     </TableCell>
+                    <TableCell>{getMatchStatus(match)}</TableCell>
                     <TableCell>
                       {match.scheduledCourt ? (
-                        <Badge variant="outline">Court {match.scheduledCourt}</Badge>
+                        <Badge variant="outline">
+                          Court {match.scheduledCourt}
+                        </Badge>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      {match.teamAScore !== null && match.teamBScore !== null ? (
-                        <span className="font-mono">{match.teamAScore} - {match.teamBScore}</span>
+                      {match.teamAScore !== null &&
+                      match.teamBScore !== null ? (
+                        <span className="font-mono">
+                          {match.teamAScore} - {match.teamBScore}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {match.completedAt && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditScoreModal(match)}
+                          className="text-xs"
+                        >
+                          Edit Score
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>
@@ -277,7 +409,8 @@ function SeedRoundPage() {
           <DialogHeader>
             <DialogTitle>Generate Seed Matches</DialogTitle>
             <DialogDescription>
-              Configure how many matches each team should play in the seed round.
+              Configure how many matches each team should play in the seed
+              round.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -289,12 +422,16 @@ function SeedRoundPage() {
                 min="1"
                 max="10"
                 value={matchesPerTeam}
-                onChange={(e) => setMatchesPerTeam(parseInt(e.target.value) || 1)}
+                onChange={(e) =>
+                  setMatchesPerTeam(parseInt(e.target.value) || 1)
+                }
                 className="w-full"
               />
               <p className="text-xs text-muted-foreground">
-                Each team will play approximately {matchesPerTeam} matches against different opponents.
-                With {teams.length} teams, this will generate approximately {Math.floor((teams.length * matchesPerTeam) / 2)} total matches.
+                Each team will play approximately {matchesPerTeam} matches
+                against different opponents. With {teams.length} teams, this
+                will generate approximately{" "}
+                {Math.floor((teams.length * matchesPerTeam) / 2)} total matches.
               </p>
             </div>
           </div>
@@ -306,11 +443,8 @@ function SeedRoundPage() {
             >
               Cancel
             </Button>
-            <Button
-              onClick={generateSeedMatches}
-              disabled={generating}
-            >
-              {generating ? 'Generating...' : 'Generate Matches'}
+            <Button onClick={generateSeedMatches} disabled={generating}>
+              {generating ? "Generating..." : "Generate Matches"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -322,10 +456,12 @@ function SeedRoundPage() {
           <DialogHeader>
             <DialogTitle>Clear Seed Round</DialogTitle>
             <DialogDescription>
-              Are you sure you want to clear all seed round matches? This action cannot be undone.
+              Are you sure you want to clear all seed round matches? This action
+              cannot be undone.
               {hasStartedMatches && (
                 <span className="block mt-2 text-destructive font-medium">
-                  Warning: Some matches have already started or been completed. All progress will be lost.
+                  Warning: Some matches have already started or been completed.
+                  All progress will be lost.
                 </span>
               )}
             </DialogDescription>
@@ -343,7 +479,76 @@ function SeedRoundPage() {
               onClick={clearSeedRound}
               disabled={clearing}
             >
-              {clearing ? 'Clearing...' : 'Clear Seed Round'}
+              {clearing ? "Clearing..." : "Clear Seed Round"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Score Dialog */}
+      <Dialog
+        open={!!editScoreModal.match}
+        onOpenChange={(open: boolean) =>
+          !open &&
+          setEditScoreModal({ match: null, teamAScore: "", teamBScore: "" })
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Match Score</DialogTitle>
+            <DialogDescription>
+              Update the final score for this completed match
+            </DialogDescription>
+          </DialogHeader>
+          {editScoreModal.match && (
+            <div className="space-y-4 py-4">
+              <div className="text-center text-sm text-muted-foreground mb-4">
+                {(editScoreModal.match as any).teamA?.name} vs {(editScoreModal.match as any).teamB?.name}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-team-a-score">
+                  {(editScoreModal.match as any).teamA?.name} Score
+                </Label>
+                <Input
+                  id="edit-team-a-score"
+                  type="number"
+                  min="0"
+                  value={editScoreModal.teamAScore}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditScoreModal({ ...editScoreModal, teamAScore: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-team-b-score">
+                  {(editScoreModal.match as any).teamB?.name} Score
+                </Label>
+                <Input
+                  id="edit-team-b-score"
+                  type="number"
+                  min="0"
+                  value={editScoreModal.teamBScore}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditScoreModal({ ...editScoreModal, teamBScore: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setEditScoreModal({ match: null, teamAScore: "", teamBScore: "" })
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={updateMatchScore}
+              disabled={!editScoreModal.teamAScore || !editScoreModal.teamBScore}
+            >
+              Update Score
             </Button>
           </DialogFooter>
         </DialogContent>

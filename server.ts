@@ -23,11 +23,31 @@ app.get('/api/tournaments', async (req, res) => {
 
 app.post('/api/tournaments', async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, seedMatchesPerTeam = 3, totalCourts = 6 } = req.body;
     const tournament = await prisma.tournament.create({
-      data: { name },
+      data: { 
+        name,
+        seedMatchesPerTeam,
+        totalCourts,
+      },
     });
-    res.json(tournament);
+
+    // Create default courts
+    const courtData = Array.from({ length: totalCourts }, (_, i) => ({
+      number: i + 1,
+      tournamentId: tournament.id,
+    }));
+
+    await prisma.court.createMany({
+      data: courtData,
+    });
+
+    const tournamentWithCourts = await prisma.tournament.findUnique({
+      where: { id: tournament.id },
+      include: { courts: { orderBy: { number: 'asc' } } },
+    });
+
+    res.json(tournamentWithCourts);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create tournament' });
   }
@@ -44,8 +64,37 @@ app.get('/api/tournaments/:id', async (req, res) => {
           },
         },
         matches: true,
+        courts: { orderBy: { number: 'asc' } },
       },
     });
+    
+    // Create courts if they don't exist (for backward compatibility)
+    if (tournament && tournament.courts.length === 0) {
+      const courtData = Array.from({ length: tournament.totalCourts }, (_, i) => ({
+        number: i + 1,
+        tournamentId: tournament.id,
+      }));
+
+      await prisma.court.createMany({
+        data: courtData,
+      });
+
+      const updatedTournament = await prisma.tournament.findUnique({
+        where: { id: req.params.id },
+        include: {
+          teams: {
+            include: {
+              players: true,
+            },
+          },
+          matches: true,
+          courts: { orderBy: { number: 'asc' } },
+        },
+      });
+      
+      return res.json(updatedTournament);
+    }
+    
     res.json(tournament);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch tournament' });
@@ -284,17 +333,29 @@ app.put('/api/tournaments/:tournamentId/courts/add', async (req, res) => {
     const tournamentId = req.params.tournamentId;
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
+      include: { courts: { orderBy: { number: 'desc' } } },
     });
 
     if (!tournament) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
+    const newCourtNumber = tournament.totalCourts + 1;
+
+    // Create new court
+    await prisma.court.create({
+      data: {
+        number: newCourtNumber,
+        tournamentId,
+      },
+    });
+
     const updatedTournament = await prisma.tournament.update({
       where: { id: tournamentId },
       data: {
         totalCourts: tournament.totalCourts + 1,
       },
+      include: { courts: { orderBy: { number: 'asc' } } },
     });
 
     res.json(updatedTournament);
@@ -309,6 +370,7 @@ app.put('/api/tournaments/:tournamentId/courts/remove', async (req, res) => {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       include: {
+        courts: { orderBy: { number: 'asc' } },
         matches: {
           where: {
             scheduledCourt: { not: null },
@@ -338,16 +400,39 @@ app.put('/api/tournaments/:tournamentId/courts/remove', async (req, res) => {
       });
     }
 
+    // Remove the highest numbered court from database
+    await prisma.court.deleteMany({
+      where: {
+        tournamentId,
+        number: highestCourtNumber,
+      },
+    });
+
     const updatedTournament = await prisma.tournament.update({
       where: { id: tournamentId },
       data: {
         totalCourts: tournament.totalCourts - 1,
       },
+      include: { courts: { orderBy: { number: 'asc' } } },
     });
 
     res.json(updatedTournament);
   } catch (error) {
     res.status(500).json({ error: 'Failed to remove court' });
+  }
+});
+
+// Court name update endpoint
+app.put('/api/courts/:courtId/name', async (req, res) => {
+  try {
+    const { name } = req.body;
+    const court = await prisma.court.update({
+      where: { id: req.params.courtId },
+      data: { name: name || null },
+    });
+    res.json(court);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update court name' });
   }
 });
 
