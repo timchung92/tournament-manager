@@ -76,24 +76,9 @@ function TournamentDashboard() {
           className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow"
         >
           <h3 className="text-lg font-semibold mb-2">Seed Round</h3>
-          <p className="text-gray-600">Generate and manage seed matches</p>
+          <p className="text-gray-600">Manage matches, courts, and view leaderboard</p>
         </Link>
 
-        <Link
-          to={`/tournament/${tournamentId}/courts`}
-          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow"
-        >
-          <h3 className="text-lg font-semibold mb-2">Court Management</h3>
-          <p className="text-gray-600">Assign matches to courts</p>
-        </Link>
-
-        <Link
-          to={`/tournament/${tournamentId}/leaderboard`}
-          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow"
-        >
-          <h3 className="text-lg font-semibold mb-2">Leaderboard</h3>
-          <p className="text-gray-600">View team rankings</p>
-        </Link>
 
         <Link
           to={`/tournament/${tournamentId}/bracket`}

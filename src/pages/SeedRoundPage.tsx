@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Match, Team, Tournament } from "../types";
+import { Match, Team, Tournament, TeamStats, Court } from "../types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,12 +35,16 @@ function SeedRoundPage() {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [leaderboard, setLeaderboard] = useState<TeamStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [addingCourt, setAddingCourt] = useState(false);
+  const [removingCourt, setRemovingCourt] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [matchesPerTeam, setMatchesPerTeam] = useState(3);
+  const [viewMode, setViewMode] = useState<'matches' | 'leaderboard'>('matches');
   const [editScoreModal, setEditScoreModal] = useState<{
     match: Match | null;
     teamAScore: string;
@@ -50,6 +54,17 @@ function SeedRoundPage() {
     teamAScore: "",
     teamBScore: "",
   });
+  const [scoreModal, setScoreModal] = useState<{
+    match: Match | null;
+    teamAScore: string;
+    teamBScore: string;
+  }>({
+    match: null,
+    teamAScore: "",
+    teamBScore: "",
+  });
+  const [editingCourtId, setEditingCourtId] = useState<string | null>(null);
+  const [editingCourtName, setEditingCourtName] = useState("");
 
   useEffect(() => {
     if (tournamentId) {
@@ -59,10 +74,11 @@ function SeedRoundPage() {
 
   const fetchData = async () => {
     try {
-      const [tournamentRes, matchesRes, teamsRes] = await Promise.all([
+      const [tournamentRes, matchesRes, teamsRes, leaderboardRes] = await Promise.all([
         fetch(`/api/tournaments/${tournamentId}`),
         fetch(`/api/tournaments/${tournamentId}/matches`),
         fetch(`/api/tournaments/${tournamentId}/teams`),
+        fetch(`/api/tournaments/${tournamentId}/leaderboard`),
       ]);
 
       if (tournamentRes.ok && matchesRes.ok && teamsRes.ok) {
@@ -70,9 +86,14 @@ function SeedRoundPage() {
         const matchesData = await matchesRes.json();
         const teamsData = await teamsRes.json();
         setTournament(tournamentData);
-        setMatches(matchesData.filter((m: Match) => m.roundType === "seed"));
+        setMatches(matchesData);
         setTeams(teamsData);
         setMatchesPerTeam(tournamentData.seedMatchesPerTeam);
+        
+        if (leaderboardRes.ok) {
+          const leaderboardData = await leaderboardRes.json();
+          setLeaderboard(leaderboardData);
+        }
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -175,6 +196,138 @@ function SeedRoundPage() {
     });
   };
 
+  const assignCourt = async (matchId: string, courtNumber: number) => {
+    try {
+      const response = await fetch(`/api/matches/${matchId}/assign-court`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courtNumber }),
+      });
+
+      if (response.ok) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error("Error assigning court:", error);
+    }
+  };
+
+  const unassignCourt = async (matchId: string) => {
+    try {
+      const response = await fetch(`/api/matches/${matchId}/unassign-court`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (response.ok) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error("Error unassigning court:", error);
+    }
+  };
+
+  const addCourt = async () => {
+    setAddingCourt(true);
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/courts/add`,
+        {
+          method: "PUT",
+        }
+      );
+
+      if (response.ok) {
+        await fetchData();
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to add court");
+      }
+    } catch (error) {
+      console.error("Error adding court:", error);
+      alert("Failed to add court");
+    } finally {
+      setAddingCourt(false);
+    }
+  };
+
+  const removeCourt = async () => {
+    setRemovingCourt(true);
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/courts/remove`,
+        {
+          method: "PUT",
+        }
+      );
+
+      if (response.ok) {
+        await fetchData();
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to remove court");
+      }
+    } catch (error) {
+      console.error("Error removing court:", error);
+      alert("Failed to remove court");
+    } finally {
+      setRemovingCourt(false);
+    }
+  };
+
+  const submitScore = async () => {
+    if (!scoreModal.match) return;
+
+    try {
+      const response = await fetch(
+        `/api/matches/${scoreModal.match.id}/score`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            teamAScore: parseInt(scoreModal.teamAScore),
+            teamBScore: parseInt(scoreModal.teamBScore),
+          }),
+        }
+      );
+
+      if (response.ok) {
+        setScoreModal({ match: null, teamAScore: "", teamBScore: "" });
+        await fetchData();
+      }
+    } catch (error) {
+      console.error("Error submitting score:", error);
+    }
+  };
+
+  const updateCourtName = async (courtId: string, name: string) => {
+    try {
+      const response = await fetch(`/api/courts/${courtId}/name`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() || null }),
+      });
+
+      if (response.ok) {
+        setEditingCourtId(null);
+        setEditingCourtName("");
+        await fetchData();
+      }
+    } catch (error) {
+      console.error("Error updating court name:", error);
+    }
+  };
+
+  const startEditingCourt = (court: Court) => {
+    setEditingCourtId(court.id);
+    setEditingCourtName(court.name || "");
+  };
+
+  const cancelEditingCourt = () => {
+    setEditingCourtId(null);
+    setEditingCourtName("");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -183,17 +336,41 @@ function SeedRoundPage() {
     );
   }
 
-  const hasMatches = matches.length > 0;
-  const hasStartedMatches = matches.some(
+  // Filter seed round matches only
+  const seedMatches = matches.filter((m) => m.roundType === "seed");
+  const hasMatches = seedMatches.length > 0;
+  const hasStartedMatches = seedMatches.some(
     (m) => m.scheduledCourt || m.completedAt
   );
   const completedMatches = matches.filter((m) => m.completedAt);
-  const inProgressMatches = matches.filter(
-    (m) => m.scheduledCourt && !m.completedAt
+  const pendingMatches = matches.filter((m) => !m.scheduledCourt && !m.completedAt);
+  const activeMatches = matches.filter((m) => m.scheduledCourt && !m.completedAt);
+  const courtsAvailable = tournament?.totalCourts ? tournament.totalCourts - activeMatches.length : 0;
+  
+  // Court management logic
+  const courts = tournament?.courts || [];
+  const occupiedCourts = activeMatches.map((m) => m.scheduledCourt).filter(c => c !== null && c !== undefined);
+  const availableCourtNumbers = courts
+    .map((c) => c.number)
+    .filter((c) => !occupiedCourts.includes(c));
+  
+  const teamsCurrentlyPlaying = new Set(
+    activeMatches.flatMap((m) => [m.teamAId, m.teamBId])
   );
-  const pendingMatches = matches.filter(
+  
+  const allIncompleteMatches = matches.filter(
     (m) => !m.scheduledCourt && !m.completedAt
   );
+  
+  const availableMatches = allIncompleteMatches.filter(
+    (m) =>
+      !teamsCurrentlyPlaying.has(m.teamAId) &&
+      !teamsCurrentlyPlaying.has(m.teamBId)
+  );
+  
+  const highestCourtInUse = occupiedCourts.length > 0 ? Math.max(...occupiedCourts) : 0;
+  const canRemoveCourt =
+    tournament && tournament.totalCourts > 1 && highestCourtInUse < tournament.totalCourts;
 
   const getMatchStatus = (match: any) => {
     if (match.completedAt) {
@@ -207,27 +384,19 @@ function SeedRoundPage() {
 
   return (
     <div className="space-y-6">
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4">
         <Button
           variant="ghost"
           onClick={() => navigate(`/tournament/${tournamentId}`)}
         >
           ← Back to Dashboard
         </Button>
-        {hasMatches && (
-          <Button
-            variant="outline"
-            onClick={() => navigate(`/tournament/${tournamentId}/courts`)}
-          >
-            Manage Courts
-          </Button>
-        )}
       </div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Seed Round</h1>
           <p className="text-muted-foreground">
-            {teams.length} teams registered • {matches.length} seed matches
+            {teams.length} teams registered • {seedMatches.length} seed matches
           </p>
         </div>
         <div className="flex gap-2">
@@ -253,69 +422,399 @@ function SeedRoundPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              Completed Matches
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="text-lg font-bold text-green-600">
+              {completedMatches.length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              Pending Matches
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="text-lg font-bold text-yellow-600">
+              {pendingMatches.length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              Courts Available
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="text-lg font-bold text-blue-600">
+              {courtsAvailable}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              Games in Progress
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="text-lg font-bold text-red-600">
+              {activeMatches.length}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Court Status and Pending Matches */}
       {hasMatches && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Court Status */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Matches
-              </CardTitle>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Court Status</CardTitle>
+                  <CardDescription>Real-time status of all courts</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={addCourt}
+                    disabled={addingCourt}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {addingCourt ? "Adding..." : "+ Court"}
+                  </Button>
+                  <Button
+                    onClick={removeCourt}
+                    disabled={removingCourt || !canRemoveCourt}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {removingCourt ? "Removing..." : "- Court"}
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{matches.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Completed
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {completedMatches.length}
+              <div className="grid grid-cols-2 gap-3">
+                {courts.map((court) => {
+                  const match = activeMatches.find(
+                    (m) => m.scheduledCourt === court.number
+                  );
+                  const isEditing = editingCourtId === court.id;
+                  return (
+                    <div
+                      key={court.id}
+                      className={`p-3 rounded-lg text-center border-2 text-sm ${
+                        match
+                          ? "border-red-200 bg-red-50"
+                          : "border-green-200 bg-green-50"
+                      }`}
+                    >
+                      <div className="font-semibold mb-2">
+                        {isEditing ? (
+                          <div className="space-y-1">
+                            <Input
+                              value={editingCourtName}
+                              onChange={(e) => setEditingCourtName(e.target.value)}
+                              placeholder={`Court ${court.number}`}
+                              className="text-center text-xs h-6"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  updateCourtName(court.id, editingCourtName);
+                                } else if (e.key === "Escape") {
+                                  cancelEditingCourt();
+                                }
+                              }}
+                              autoFocus
+                            />
+                            <div className="flex gap-1 justify-center">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateCourtName(court.id, editingCourtName)}
+                                className="text-xs px-1 py-0 h-4"
+                              >
+                                ✓
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={cancelEditingCourt}
+                                className="text-xs px-1 py-0 h-4"
+                              >
+                                ✕
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            className="cursor-pointer hover:text-blue-600"
+                            onClick={() => startEditingCourt(court)}
+                            title="Click to edit court name"
+                          >
+                            {court.name || `Court ${court.number}`}
+                          </div>
+                        )}
+                      </div>
+                      {!isEditing && match ? (
+                        <div className="text-xs space-y-1">
+                          <div className="text-gray-700 font-medium">
+                            {(match as any).teamA?.name}
+                          </div>
+                          <div className="text-xs text-gray-500">vs</div>
+                          <div className="text-gray-700 font-medium">
+                            {(match as any).teamB?.name}
+                          </div>
+                          <div className="flex gap-1 mt-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setScoreModal({
+                                  match,
+                                  teamAScore: "",
+                                  teamBScore: "",
+                                })
+                              }
+                              className="text-xs h-6 flex-1"
+                            >
+                              Enter Score
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => unassignCourt(match.id)}
+                              className="text-xs h-6 px-2"
+                              title="Unassign from court"
+                            >
+                              ✕
+                            </Button>
+                          </div>
+                        </div>
+                      ) : !isEditing ? (
+                        <Badge variant="secondary" className="text-xs">Available</Badge>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
+
+          {/* Pending Matches */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                In Progress
-              </CardTitle>
+            <CardHeader>
+              <CardTitle>Pending Matches</CardTitle>
+              <CardDescription>
+                Matches ready to be assigned to courts
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {inProgressMatches.length}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pending
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-600">
-                {pendingMatches.length}
-              </div>
-              {pendingMatches.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => navigate(`/tournament/${tournamentId}/courts`)}
-                  className="mt-2 text-xs"
-                >
-                  Assign to Courts
-                </Button>
+              {availableMatches.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No matches ready for assignment
+                </p>
+              ) : (
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {availableMatches.map((match: any) => (
+                    <div
+                      key={match.id}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div className="text-sm">
+                        <div className="font-medium">{match.teamA?.name}</div>
+                        <div className="text-xs text-muted-foreground">vs</div>
+                        <div className="font-medium">{match.teamB?.name}</div>
+                      </div>
+                      {availableCourtNumbers.length > 0 ? (
+                        <select
+                          onChange={(e) => {
+                            const courtNumber = parseInt(e.target.value);
+                            if (courtNumber) assignCourt(match.id, courtNumber);
+                          }}
+                          className="text-sm rounded border-input bg-background px-2 py-1 hover:cursor-pointer"
+                          defaultValue=""
+                        >
+                          <option value="">Assign to court...</option>
+                          {availableCourtNumbers.map((courtNumber) => {
+                            const court = courts.find(c => c.number === courtNumber);
+                            return (
+                              <option key={courtNumber} value={courtNumber}>
+                                {court?.name || `Court ${courtNumber}`}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">No courts available</Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
       )}
 
-      {!hasMatches ? (
+      {/* Toggle between Seed Round Matches and Leaderboard */}
+      {hasMatches ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>
+                  {viewMode === 'matches' ? 'Seed Round Matches' : 'Leaderboard'}
+                </CardTitle>
+                <CardDescription>
+                  {viewMode === 'matches'
+                    ? 'All seed round matches for the tournament'
+                    : 'Team rankings based on completed matches'}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'matches' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('matches')}
+                >
+                  Matches
+                </Button>
+                <Button
+                  variant={viewMode === 'leaderboard' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('leaderboard')}
+                >
+                  Leaderboard
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {viewMode === 'matches' ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Match</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Court</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {seedMatches.map((match: any) => (
+                    <TableRow key={match.id}>
+                      <TableCell>
+                        <div className="font-medium">{match.teamA?.name}</div>
+                        <div className="text-xs text-muted-foreground">vs</div>
+                        <div className="font-medium">{match.teamB?.name}</div>
+                      </TableCell>
+                      <TableCell>{getMatchStatus(match)}</TableCell>
+                      <TableCell>
+                        {match.scheduledCourt ? (
+                          <Badge variant="outline">
+                            Court {match.scheduledCourt}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {match.teamAScore !== null &&
+                        match.teamBScore !== null ? (
+                          <span className="font-mono">
+                            {match.teamAScore} - {match.teamBScore}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {match.completedAt && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditScoreModal(match)}
+                            className="text-xs"
+                          >
+                            Edit Score
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              leaderboard.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No completed matches yet</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Rank</TableHead>
+                      <TableHead>Team</TableHead>
+                      <TableHead className="text-center">Matches</TableHead>
+                      <TableHead className="text-center">Points For</TableHead>
+                      <TableHead className="text-center">Points Against</TableHead>
+                      <TableHead className="text-center">Point Differential</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leaderboard.slice(0, 15).map((team, index) => (
+                      <TableRow key={team.teamId}>
+                        <TableCell className="font-medium">
+                          {index + 1}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {team.teamName}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {team.matchesPlayed}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {team.pointsFor}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {team.pointsAgainst}
+                        </TableCell>
+                        <TableCell className="text-center font-medium">
+                          <span
+                            className={
+                              team.pointDifferential > 0
+                                ? 'text-green-600'
+                                : team.pointDifferential < 0
+                                ? 'text-red-600'
+                                : 'text-gray-600'
+                            }
+                          >
+                            {team.pointDifferential > 0 ? '+' : ''}
+                            {team.pointDifferential}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )
+            )}
+          </CardContent>
+        </Card>
+      ) : (
         <Card>
           <CardHeader>
             <CardTitle>No Seed Matches Generated</CardTitle>
@@ -334,71 +833,6 @@ function SeedRoundPage() {
                 Click "Generate Seed Matches" to create random pairings.
               </p>
             )}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Seed Matches</CardTitle>
-            <CardDescription>
-              All seed round matches for the tournament
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Match</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Court</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {matches.map((match: any) => (
-                  <TableRow key={match.id}>
-                    <TableCell>
-                      <div className="font-medium">{match.teamA?.name}</div>
-                      <div className="text-xs text-muted-foreground">vs</div>
-                      <div className="font-medium">{match.teamB?.name}</div>
-                    </TableCell>
-                    <TableCell>{getMatchStatus(match)}</TableCell>
-                    <TableCell>
-                      {match.scheduledCourt ? (
-                        <Badge variant="outline">
-                          Court {match.scheduledCourt}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {match.teamAScore !== null &&
-                      match.teamBScore !== null ? (
-                        <span className="font-mono">
-                          {match.teamAScore} - {match.teamBScore}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {match.completedAt && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEditScoreModal(match)}
-                          className="text-xs"
-                        >
-                          Edit Score
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </CardContent>
         </Card>
       )}
@@ -549,6 +983,72 @@ function SeedRoundPage() {
               disabled={!editScoreModal.teamAScore || !editScoreModal.teamBScore}
             >
               Update Score
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Score Entry Dialog */}
+      <Dialog
+        open={!!scoreModal.match}
+        onOpenChange={(open: boolean) =>
+          !open &&
+          setScoreModal({ match: null, teamAScore: "", teamBScore: "" })
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter Match Score</DialogTitle>
+            <DialogDescription>
+              Record the final score for this match
+            </DialogDescription>
+          </DialogHeader>
+          {scoreModal.match && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="team-a-score">
+                  {(scoreModal.match as any).teamA?.name} Score
+                </Label>
+                <Input
+                  id="team-a-score"
+                  type="number"
+                  min="0"
+                  value={scoreModal.teamAScore}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setScoreModal({ ...scoreModal, teamAScore: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="team-b-score">
+                  {(scoreModal.match as any).teamB?.name} Score
+                </Label>
+                <Input
+                  id="team-b-score"
+                  type="number"
+                  min="0"
+                  value={scoreModal.teamBScore}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setScoreModal({ ...scoreModal, teamBScore: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setScoreModal({ match: null, teamAScore: "", teamBScore: "" })
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={submitScore}
+              disabled={!scoreModal.teamAScore || !scoreModal.teamBScore}
+            >
+              Submit Score
             </Button>
           </DialogFooter>
         </DialogContent>

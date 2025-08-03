@@ -355,6 +355,25 @@ app.put('/api/matches/:id/assign-court', async (req, res) => {
   }
 });
 
+app.put('/api/matches/:id/unassign-court', async (req, res) => {
+  try {
+    const match = await prisma.match.update({
+      where: { id: req.params.id },
+      data: {
+        scheduledCourt: null,
+        startTime: null,
+      },
+      include: {
+        teamA: { include: { players: true } },
+        teamB: { include: { players: true } },
+      },
+    });
+    res.json(match);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to unassign court' });
+  }
+});
+
 app.put('/api/matches/:id/score', async (req, res) => {
   try {
     const { teamAScore, teamBScore } = req.body;
