@@ -7,6 +7,7 @@ import SeedRoundPage from './pages/SeedRoundPage';
 import CourtsDashboardPage from './pages/CourtsDashboardPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import BracketPage from './pages/BracketPage';
+import BracketVisualizationPage from './pages/BracketVisualizationPage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route path="/tournament/:tournamentId/courts" element={<CourtsDashboardPage />} />
           <Route path="/tournament/:tournamentId/leaderboard" element={<LeaderboardPage />} />
           <Route path="/tournament/:tournamentId/bracket" element={<BracketPage />} />
+          <Route path="/tournament/:tournamentId/bracket/view" element={<BracketVisualizationPage />} />
         </Routes>
       </Layout>
     </Router>

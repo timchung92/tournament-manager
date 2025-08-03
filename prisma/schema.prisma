@@ -15,6 +15,7 @@ model Tournament {
   name              String
   seedMatchesPerTeam Int      @default(3)
   totalCourts       Int      @default(6)
+  teamsToAdvance    Int?     // Number of teams advancing to bracket (null = all teams)
   createdAt         DateTime  @default(now())
   teams             Team[]
   matches           Match[]

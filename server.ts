@@ -9,6 +9,52 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
+// Helper function to generate proper bracket pairings
+function generateBracketPairings(bracketSize: number): [number, number][] {
+  const pairings: [number, number][] = [];
+  const rounds = Math.log2(bracketSize);
+  
+  // For a proper single elimination bracket, we need to pair teams so that
+  // the top seeds meet in later rounds
+  // This uses the standard tournament bracket seeding algorithm
+  
+  function generatePairingsRecursive(seeds: number[]): number[][] {
+    if (seeds.length === 2) {
+      return [[seeds[0], seeds[1]]];
+    }
+    
+    const half = seeds.length / 2;
+    const top: number[] = [];
+    const bottom: number[] = [];
+    
+    // Split seeds alternating between top and bottom halves
+    for (let i = 0; i < seeds.length; i++) {
+      if (i % 4 < 2) {
+        top.push(seeds[i]);
+      } else {
+        bottom.push(seeds[i]);
+      }
+    }
+    
+    // Reverse bottom half to create proper matchups
+    bottom.reverse();
+    
+    // Create matches for this round
+    const matches: number[][] = [];
+    for (let i = 0; i < half; i++) {
+      matches.push([top[i], bottom[i]]);
+    }
+    
+    return matches;
+  }
+  
+  // Generate seed positions 1 through bracketSize
+  const seeds = Array.from({ length: bracketSize }, (_, i) => i + 1);
+  const matches = generatePairingsRecursive(seeds);
+  
+  return matches.map(match => [match[0], match[1]] as [number, number]);
+}
+
 // Tournaments
 app.get('/api/tournaments', async (req, res) => {
   try {
@@ -490,6 +536,295 @@ app.get('/api/tournaments/:tournamentId/leaderboard', async (req, res) => {
     res.json(leaderboard);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
+});
+
+// Bracket Management
+app.post('/api/tournaments/:tournamentId/bracket/generate', async (req, res) => {
+  try {
+    const tournamentId = req.params.tournamentId;
+    const { teamsToAdvance } = req.body;
+
+    // Get tournament and leaderboard
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: { teams: true }
+    });
+
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    // Get leaderboard to determine seeding
+    const matches = await prisma.match.findMany({
+      where: {
+        tournamentId,
+        roundType: 'seed',
+        completedAt: { not: null },
+      },
+      include: {
+        teamA: true,
+        teamB: true,
+      },
+    });
+
+    const teamStats = new Map();
+    tournament.teams.forEach(team => {
+      teamStats.set(team.id, {
+        teamId: team.id,
+        teamName: team.name,
+        matchesPlayed: 0,
+        pointDifferential: 0,
+      });
+    });
+
+    matches.forEach(match => {
+      if (match.teamAScore !== null && match.teamBScore !== null) {
+        const teamAStats = teamStats.get(match.teamAId);
+        const teamBStats = teamStats.get(match.teamBId);
+
+        teamAStats.matchesPlayed++;
+        teamAStats.pointDifferential += (match.teamAScore - match.teamBScore);
+
+        teamBStats.matchesPlayed++;
+        teamBStats.pointDifferential += (match.teamBScore - match.teamAScore);
+      }
+    });
+
+    const leaderboard = Array.from(teamStats.values())
+      .filter(team => team.matchesPlayed > 0)
+      .sort((a, b) => b.pointDifferential - a.pointDifferential);
+
+    // Determine number of teams advancing
+    const numTeamsToAdvance = teamsToAdvance || leaderboard.length;
+    
+    if (numTeamsToAdvance < 2) {
+      return res.status(400).json({ error: 'Need at least 2 teams to generate bracket' });
+    }
+
+    if (numTeamsToAdvance > leaderboard.length) {
+      return res.status(400).json({ 
+        error: `Only ${leaderboard.length} teams have completed matches. Cannot advance ${numTeamsToAdvance} teams.` 
+      });
+    }
+
+    // Clear existing bracket matches
+    await prisma.bracketMatch.deleteMany({
+      where: { tournamentId }
+    });
+
+    // Take top N teams
+    const qualifiedTeams = leaderboard.slice(0, numTeamsToAdvance);
+    
+    // Calculate bracket size (next power of 2)
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(numTeamsToAdvance)));
+    const rounds = Math.log2(bracketSize);
+    const byeCount = bracketSize - numTeamsToAdvance;
+
+    // Create bracket matches
+    const bracketMatches = [];
+    
+    // Create a seeding array with nulls for byes
+    const seededTeams = [];
+    for (let i = 0; i < bracketSize; i++) {
+      if (i < qualifiedTeams.length) {
+        seededTeams.push(qualifiedTeams[i].teamId);
+      } else {
+        seededTeams.push(null);
+      }
+    }
+
+    // Generate matches for each round
+    for (let round = 1; round <= rounds; round++) {
+      const matchesInRound = Math.pow(2, rounds - round);
+      
+      for (let matchNum = 0; matchNum < matchesInRound; matchNum++) {
+        const match = {
+          id: `${tournamentId}-${round}-${matchNum}`,
+          tournamentId,
+          round,
+          matchNumber: matchNum,
+          teamAId: null,
+          teamBId: null,
+        };
+
+        // For first round, assign teams based on seeding with proper bracket pairing
+        if (round === 1) {
+          // In a proper bracket, matches are paired so top seeds play bottom seeds
+          // For match 0: seed 1 vs seed 16 (for 16-team bracket)
+          // For match 1: seed 8 vs seed 9
+          // For match 2: seed 4 vs seed 13
+          // etc.
+          const pairings = generateBracketPairings(bracketSize);
+          const [topSeedPos, bottomSeedPos] = pairings[matchNum];
+          
+          match.teamAId = seededTeams[topSeedPos - 1]; // -1 because seeds are 1-based
+          match.teamBId = seededTeams[bottomSeedPos - 1];
+        }
+
+        // Set up advancement path
+        if (round < rounds) {
+          const nextRoundMatchNumber = Math.floor(matchNum / 2);
+          match.winnerAdvancesToMatchId = `${tournamentId}-${round + 1}-${nextRoundMatchNumber}`;
+        }
+
+        bracketMatches.push(match);
+      }
+    }
+
+    // After creating all matches, handle byes by advancing teams automatically
+    for (const match of bracketMatches) {
+      if (match.round === 1 && match.teamAId && !match.teamBId) {
+        // Team A gets a bye, advance to next round
+        if (match.winnerAdvancesToMatchId) {
+          const nextMatch = bracketMatches.find(m => m.id === match.winnerAdvancesToMatchId);
+          if (nextMatch) {
+            const isTeamAPosition = match.matchNumber % 2 === 0;
+            if (isTeamAPosition) {
+              nextMatch.teamAId = match.teamAId;
+            } else {
+              nextMatch.teamBId = match.teamAId;
+            }
+          }
+        }
+      } else if (match.round === 1 && !match.teamAId && match.teamBId) {
+        // Team B gets a bye, advance to next round
+        if (match.winnerAdvancesToMatchId) {
+          const nextMatch = bracketMatches.find(m => m.id === match.winnerAdvancesToMatchId);
+          if (nextMatch) {
+            const isTeamAPosition = match.matchNumber % 2 === 0;
+            if (isTeamAPosition) {
+              nextMatch.teamAId = match.teamBId;
+            } else {
+              nextMatch.teamBId = match.teamBId;
+            }
+          }
+        }
+      }
+    }
+
+    // Create all bracket matches
+    await prisma.bracketMatch.createMany({
+      data: bracketMatches
+    });
+
+    // Update tournament settings
+    if (teamsToAdvance !== undefined) {
+      await prisma.tournament.update({
+        where: { id: tournamentId },
+        data: { teamsToAdvance }
+      });
+    }
+
+    res.json({
+      message: 'Bracket generated successfully',
+      teamsAdvancing: numTeamsToAdvance,
+      bracketSize,
+      rounds,
+      byeCount
+    });
+  } catch (error) {
+    console.error('Error generating bracket:', error);
+    res.status(500).json({ error: 'Failed to generate bracket' });
+  }
+});
+
+app.get('/api/tournaments/:tournamentId/bracket', async (req, res) => {
+  try {
+    const bracketMatches = await prisma.bracketMatch.findMany({
+      where: { tournamentId: req.params.tournamentId },
+      orderBy: [
+        { round: 'asc' },
+        { matchNumber: 'asc' }
+      ],
+    });
+
+    // Get team details for matches
+    const teamIds = new Set();
+    bracketMatches.forEach(match => {
+      if (match.teamAId) teamIds.add(match.teamAId);
+      if (match.teamBId) teamIds.add(match.teamBId);
+    });
+
+    const teams = await prisma.team.findMany({
+      where: { id: { in: Array.from(teamIds) } }
+    });
+
+    const teamMap = new Map(teams.map(team => [team.id, team]));
+
+    // Enhance matches with team data
+    const enhancedMatches = bracketMatches.map(match => ({
+      ...match,
+      teamA: match.teamAId ? teamMap.get(match.teamAId) : null,
+      teamB: match.teamBId ? teamMap.get(match.teamBId) : null,
+    }));
+
+    res.json(enhancedMatches);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch bracket' });
+  }
+});
+
+app.put('/api/bracket-matches/:id/score', async (req, res) => {
+  try {
+    const { teamAScore, teamBScore } = req.body;
+    const matchId = req.params.id;
+
+    const match = await prisma.bracketMatch.findUnique({
+      where: { id: matchId }
+    });
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    // Update the match score
+    const updatedMatch = await prisma.bracketMatch.update({
+      where: { id: matchId },
+      data: {
+        teamAScore,
+        teamBScore,
+        completedAt: new Date(),
+      }
+    });
+
+    // Determine winner and advance to next match if applicable
+    if (match.winnerAdvancesToMatchId) {
+      const winnerId = teamAScore > teamBScore ? match.teamAId : match.teamBId;
+      
+      // Find which position in next match (A or B)
+      const nextMatch = await prisma.bracketMatch.findUnique({
+        where: { id: match.winnerAdvancesToMatchId }
+      });
+
+      if (nextMatch) {
+        // Determine if this match feeds into teamA or teamB of next match
+        const isTeamAPosition = match.matchNumber % 2 === 0;
+        
+        await prisma.bracketMatch.update({
+          where: { id: match.winnerAdvancesToMatchId },
+          data: {
+            [isTeamAPosition ? 'teamAId' : 'teamBId']: winnerId
+          }
+        });
+      }
+    }
+
+    res.json(updatedMatch);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update bracket match score' });
+  }
+});
+
+app.delete('/api/tournaments/:tournamentId/bracket', async (req, res) => {
+  try {
+    await prisma.bracketMatch.deleteMany({
+      where: { tournamentId: req.params.tournamentId }
+    });
+
+    res.json({ message: 'Bracket cleared successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to clear bracket' });
   }
 });
 

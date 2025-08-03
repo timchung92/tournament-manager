@@ -28,6 +28,7 @@ export type Tournament = {
   name: string;
   seedMatchesPerTeam: number;
   totalCourts: number;
+  teamsToAdvance?: number;
   courts?: Court[];
   createdAt: Date;
 };
@@ -68,7 +69,11 @@ export type BracketMatch = {
   matchNumber: number;
   teamAId?: string;
   teamBId?: string;
-  result?: MatchResult;
+  teamA?: Team;
+  teamB?: Team;
+  teamAScore?: number;
+  teamBScore?: number;
+  completedAt?: Date;
   winnerAdvancesToMatchId?: string;
 };
 

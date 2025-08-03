@@ -1,0 +1,192 @@
+.bracket-container {
+  padding: 2rem;
+  background: #f9fafb;
+  min-height: 100vh;
+  overflow-x: auto;
+}
+
+.bracket-rounds {
+  display: flex;
+  align-items: flex-start;
+  gap: 4rem;
+  min-width: max-content;
+  padding: 2rem 0;
+}
+
+.bracket-round {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 280px;
+}
+
+.round-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+  margin: 0 0 2rem 0;
+  white-space: nowrap;
+}
+
+.round-matches {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.match-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.match-box {
+  background: white;
+  border: 2px solid #d1d5db;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s;
+  width: 240px;
+  position: relative;
+  z-index: 10;
+}
+
+.match-box:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+.team {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  transition: background-color 0.2s;
+}
+
+.team.winner {
+  background-color: #dcfce7;
+  font-weight: 600;
+}
+
+.team-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.team-name {
+  font-size: 0.875rem;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.team-placeholder {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.team-seed {
+  font-size: 0.75rem !important;
+  padding: 0.125rem 0.375rem !important;
+  min-width: fit-content;
+}
+
+.team-score {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1f2937;
+  margin-left: 0.5rem;
+}
+
+.match-divider {
+  height: 1px;
+  background-color: #e5e7eb;
+}
+
+.match-status {
+  padding: 0.5rem;
+  text-align: center;
+  border-top: 1px solid #e5e7eb;
+}
+
+.bye-badge {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  font-size: 0.75rem !important;
+}
+
+/* Connection lines */
+.with-connector::after {
+  content: '';
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  width: 4rem;
+  height: 2px;
+  background-color: #9ca3af;
+  z-index: 5;
+}
+
+/* Champion section */
+.champion-round {
+  justify-content: center;
+}
+
+.champion-box {
+  background: linear-gradient(135deg, #fef3c7, #fde047);
+  border: 2px solid #f59e0b;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  min-width: 200px;
+}
+
+.champion-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 0.5rem;
+}
+
+.champion-seed {
+  font-size: 0.875rem !important;
+  background-color: #f59e0b !important;
+  color: white !important;
+  border: none !important;
+}
+
+.champion-placeholder {
+  font-size: 1.125rem;
+  color: #a16207;
+  font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .bracket-container {
+    padding: 1rem;
+  }
+  
+  .bracket-rounds {
+    gap: 2rem;
+  }
+  
+  .match-box {
+    width: 200px;
+  }
+  
+  .team-name {
+    max-width: 120px;
+  }
+}
