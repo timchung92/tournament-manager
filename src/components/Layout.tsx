@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { ReactNode } from "react";
+import { Link, useParams } from "react-router-dom";
 
 interface LayoutProps {
   children: ReactNode;
@@ -18,7 +18,7 @@ function Layout({ children }: LayoutProps) {
                 to="/tournaments"
                 className="flex items-center text-xl font-bold text-gray-800 hover:text-gray-600"
               >
-                Pickleball Tournament Manager
+                Tournament Manager
               </Link>
             </div>
             {tournamentId && (
@@ -64,9 +64,7 @@ function Layout({ children }: LayoutProps) {
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {children}
-      </main>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">{children}</main>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Tournament, Team } from '../types';
+import { Users, Target, Trophy, ArrowLeft } from 'lucide-react';
 
 function TournamentDashboard() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
@@ -44,6 +45,16 @@ function TournamentDashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="mb-4">
+        <Link
+          to="/"
+          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to Tournaments
+        </Link>
+      </div>
+      
       <div className="bg-white shadow rounded-lg p-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">{tournament.name}</h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -67,15 +78,21 @@ function TournamentDashboard() {
           to={`/tournament/${tournamentId}/register`}
           className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow"
         >
-          <h3 className="text-lg font-semibold mb-2">Register Team</h3>
-          <p className="text-gray-600">Add new teams to the tournament</p>
+          <div className="flex items-center mb-2">
+            <Users className="h-5 w-5 text-blue-500 mr-2" />
+            <h3 className="text-lg font-semibold">Team Management</h3>
+          </div>
+          <p className="text-gray-600">Register new teams and manage existing teams</p>
         </Link>
 
         <Link
           to={`/tournament/${tournamentId}/seed-round`}
           className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow"
         >
-          <h3 className="text-lg font-semibold mb-2">Seed Round</h3>
+          <div className="flex items-center mb-2">
+            <Target className="h-5 w-5 text-green-500 mr-2" />
+            <h3 className="text-lg font-semibold">Seed Round</h3>
+          </div>
           <p className="text-gray-600">Manage matches, courts, and view leaderboard</p>
         </Link>
 
@@ -84,7 +101,10 @@ function TournamentDashboard() {
           to={`/tournament/${tournamentId}/bracket`}
           className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow"
         >
-          <h3 className="text-lg font-semibold mb-2">Playoff Bracket</h3>
+          <div className="flex items-center mb-2">
+            <Trophy className="h-5 w-5 text-yellow-500 mr-2" />
+            <h3 className="text-lg font-semibold">Playoff Bracket</h3>
+          </div>
           <p className="text-gray-600">Manage elimination bracket</p>
         </Link>
       </div>
