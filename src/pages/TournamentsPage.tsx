@@ -8,6 +8,7 @@ function TournamentsPage() {
   const [seedMatchesPerTeam, setSeedMatchesPerTeam] = useState(3);
   const [totalCourts, setTotalCourts] = useState(6);
   const [isCreating, setIsCreating] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTournaments();
@@ -47,6 +48,25 @@ function TournamentsPage() {
       }
     } catch (error) {
       console.error('Error creating tournament:', error);
+    }
+  };
+
+  const deleteTournament = async (tournamentId: string) => {
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setDeleteConfirmId(null);
+        fetchTournaments();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete tournament');
+      }
+    } catch (error) {
+      console.error('Error deleting tournament:', error);
+      alert('Failed to delete tournament');
     }
   };
 
@@ -174,12 +194,20 @@ function TournamentsPage() {
                         {new Date(tournament.createdAt).toLocaleDateString()}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        <Link
-                          to={`/tournament/${tournament.id}`}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          Manage
-                        </Link>
+                        <div className="flex gap-4">
+                          <Link
+                            to={`/tournament/${tournament.id}`}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            Manage
+                          </Link>
+                          <button
+                            onClick={() => setDeleteConfirmId(tournament.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -189,6 +217,53 @@ function TournamentsPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <svg
+                  className="h-6 w-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mt-4">
+                Delete Tournament
+              </h3>
+              <div className="mt-2 px-7 py-3">
+                <p className="text-sm text-gray-500">
+                  Are you sure you want to delete this tournament? This action cannot be undone and will delete all teams, matches, and scores.
+                </p>
+              </div>
+              <div className="items-center px-4 py-3 flex gap-3 justify-center">
+                <button
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteTournament(deleteConfirmId)}
+                  className="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

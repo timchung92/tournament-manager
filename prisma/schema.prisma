@@ -73,18 +73,21 @@ model BracketMatch {
   teamBId                 String?
   teamAScore              Int?
   teamBScore              Int?
+  scheduledCourtId        String?
+  scheduledCourt          Court?        @relation(fields: [scheduledCourtId], references: [id], onDelete: SetNull)
   completedAt             DateTime?
   winnerAdvancesToMatchId String?
   createdAt               DateTime      @default(now())
 }
 
 model Court {
-  id           String     @id @default(cuid())
-  number       Int
-  name         String?
-  tournamentId String
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now())
+  id             String         @id @default(cuid())
+  number         Int
+  name           String?
+  tournamentId   String
+  tournament     Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  bracketMatches BracketMatch[]
+  createdAt      DateTime       @default(now())
   
   @@unique([tournamentId, number])
 }

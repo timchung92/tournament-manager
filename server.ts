@@ -501,6 +501,78 @@ app.put('/api/courts/:courtId/name', async (req, res) => {
   }
 });
 
+// Remove specific court endpoint
+app.delete('/api/courts/:courtId', async (req, res) => {
+  try {
+    const courtId = req.params.courtId;
+    
+    // Find the court to get its tournament and number
+    const court = await prisma.court.findUnique({
+      where: { id: courtId },
+      include: {
+        tournament: {
+          include: {
+            courts: true,
+            matches: {
+              where: {
+                completedAt: null,
+              },
+            },
+            bracketMatches: {
+              where: {
+                completedAt: null,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!court) {
+      return res.status(404).json({ error: 'Court not found' });
+    }
+
+    // Check if this is the last court
+    if (court.tournament.courts.length <= 1) {
+      return res.status(400).json({ error: 'Cannot remove the last court' });
+    }
+
+    // Check if court is in use by regular matches
+    const regularMatchUsingCourt = court.tournament.matches.some(
+      match => match.scheduledCourt === court.number
+    );
+
+    // Check if court is in use by bracket matches
+    const bracketMatchUsingCourt = court.tournament.bracketMatches.some(
+      match => match.scheduledCourtId === courtId
+    );
+
+    if (regularMatchUsingCourt || bracketMatchUsingCourt) {
+      return res.status(400).json({ 
+        error: `Court ${court.number} is currently in use and cannot be removed` 
+      });
+    }
+
+    // Delete the court
+    await prisma.court.delete({
+      where: { id: courtId },
+    });
+
+    // Update tournament total courts count
+    await prisma.tournament.update({
+      where: { id: court.tournament.id },
+      data: {
+        totalCourts: court.tournament.courts.length - 1,
+      },
+    });
+
+    res.json({ message: 'Court removed successfully' });
+  } catch (error) {
+    console.error('Error removing court:', error);
+    res.status(500).json({ error: 'Failed to remove court' });
+  }
+});
+
 // Leaderboard
 app.get('/api/tournaments/:tournamentId/leaderboard', async (req, res) => {
   try {
@@ -756,6 +828,9 @@ app.get('/api/tournaments/:tournamentId/bracket', async (req, res) => {
         { round: 'asc' },
         { matchNumber: 'asc' }
       ],
+      include: {
+        scheduledCourt: true
+      }
     });
 
     // Get team details for matches
@@ -797,13 +872,14 @@ app.put('/api/bracket-matches/:id/score', async (req, res) => {
       return res.status(404).json({ error: 'Match not found' });
     }
 
-    // Update the match score
+    // Update the match score and clear court assignment
     const updatedMatch = await prisma.bracketMatch.update({
       where: { id: matchId },
       data: {
         teamAScore,
         teamBScore,
         completedAt: new Date(),
+        scheduledCourtId: null, // Automatically unassign court when score is entered
       }
     });
 
@@ -832,6 +908,66 @@ app.put('/api/bracket-matches/:id/score', async (req, res) => {
     res.json(updatedMatch);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update bracket match score' });
+  }
+});
+
+app.put('/api/bracket-matches/:id/assign-court', async (req, res) => {
+  try {
+    const { courtNumber } = req.body;
+    const matchId = req.params.id;
+    
+    // Find the court by number and tournament
+    const match = await prisma.bracketMatch.findUnique({
+      where: { id: matchId },
+      include: { tournament: true }
+    });
+    
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+    
+    const court = await prisma.court.findFirst({
+      where: {
+        tournamentId: match.tournamentId,
+        number: courtNumber
+      }
+    });
+    
+    if (!court) {
+      console.error('Court not found:', { tournamentId: match.tournamentId, courtNumber });
+      return res.status(404).json({ error: 'Court not found' });
+    }
+    
+    const updatedMatch = await prisma.bracketMatch.update({
+      where: { id: matchId },
+      data: {
+        scheduledCourtId: court.id,
+      },
+      include: {
+        scheduledCourt: true
+      }
+    });
+    
+    res.json(updatedMatch);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to assign court' });
+  }
+});
+
+app.put('/api/bracket-matches/:id/unassign-court', async (req, res) => {
+  try {
+    const match = await prisma.bracketMatch.update({
+      where: { id: req.params.id },
+      data: {
+        scheduledCourtId: null,
+      },
+      include: {
+        scheduledCourt: true
+      }
+    });
+    res.json(match);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to unassign court' });
   }
 });
 

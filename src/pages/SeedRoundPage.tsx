@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Trash2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 function SeedRoundPage() {
@@ -65,12 +66,27 @@ function SeedRoundPage() {
   });
   const [editingCourtId, setEditingCourtId] = useState<string | null>(null);
   const [editingCourtName, setEditingCourtName] = useState("");
+  const [removeMode, setRemoveMode] = useState(false);
 
   useEffect(() => {
     if (tournamentId) {
       fetchData();
     }
   }, [tournamentId]);
+
+  // Exit remove mode when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (removeMode && !(event.target as Element)?.closest('.court-status-card')) {
+        setRemoveMode(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [removeMode]);
 
   const fetchData = async () => {
     try {
@@ -251,27 +267,39 @@ function SeedRoundPage() {
     }
   };
 
-  const removeCourt = async () => {
-    setRemovingCourt(true);
-    try {
-      const response = await fetch(
-        `/api/tournaments/${tournamentId}/courts/remove`,
-        {
-          method: "PUT",
-        }
-      );
-
-      if (response.ok) {
-        await fetchData();
+  const removeCourt = async (courtId?: string) => {
+    if (!courtId) {
+      // Toggle remove mode
+      if (!removeMode) {
+        setRemoveMode(true);
+        return;
       } else {
-        const error = await response.json();
-        alert(error.error || "Failed to remove court");
+        // Cancel remove mode
+        setRemoveMode(false);
+        return;
       }
-    } catch (error) {
-      console.error("Error removing court:", error);
-      alert("Failed to remove court");
-    } finally {
-      setRemovingCourt(false);
+    } else {
+      // New behavior: remove specific court
+      if (!confirm("Are you sure you want to remove this court?")) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/courts/${courtId}`, {
+          method: "DELETE",
+        });
+
+        if (response.ok) {
+          await fetchData();
+          setRemoveMode(false); // Exit remove mode after deletion
+        } else {
+          const error = await response.json();
+          alert(error.error || "Failed to remove court");
+        }
+      } catch (error) {
+        console.error("Error removing court:", error);
+        alert("Failed to remove court");
+      }
     }
   };
 
@@ -495,12 +523,12 @@ function SeedRoundPage() {
                     {addingCourt ? "Adding..." : "+ Court"}
                   </Button>
                   <Button
-                    onClick={removeCourt}
-                    disabled={removingCourt || !canRemoveCourt}
-                    variant="outline"
+                    onClick={() => removeCourt()}
+                    disabled={removingCourt}
+                    variant={removeMode ? "default" : "outline"}
                     size="sm"
                   >
-                    {removingCourt ? "Removing..." : "- Court"}
+                    {removingCourt ? "Removing..." : removeMode ? "Cancel Remove" : "- Court"}
                   </Button>
                 </div>
               </div>
@@ -515,7 +543,7 @@ function SeedRoundPage() {
                   return (
                     <div
                       key={court.id}
-                      className={`p-3 rounded-lg text-center border-2 text-sm ${
+                      className={`p-3 rounded-lg text-center border-2 text-sm court-status-card ${
                         match
                           ? "border-red-200 bg-red-50"
                           : "border-green-200 bg-green-50"
@@ -603,7 +631,20 @@ function SeedRoundPage() {
                           </div>
                         </div>
                       ) : !isEditing ? (
-                        <Badge variant="secondary" className="text-xs">Available</Badge>
+                        <div className="flex items-center justify-between">
+                          <Badge variant="secondary" className="text-xs">Available</Badge>
+                          {removeMode && courts.length > 1 && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeCourt(court.id)}
+                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              title="Delete this court"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       ) : null}
                     </div>
                   );

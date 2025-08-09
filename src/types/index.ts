@@ -73,6 +73,8 @@ export type BracketMatch = {
   teamB?: Team;
   teamAScore?: number;
   teamBScore?: number;
+  scheduledCourtId?: string;
+  scheduledCourt?: Court;
   completedAt?: Date;
   winnerAdvancesToMatchId?: string;
 };
