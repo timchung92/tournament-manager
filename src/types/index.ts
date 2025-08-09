@@ -10,8 +10,10 @@ export type Player = {
 export type Team = {
   id: string;
   name: string;
+  teamNumber: number;
   tournamentId: string;
   players: [Player, Player];
+  isCheckedIn: boolean;
   createdAt: Date;
 };
 

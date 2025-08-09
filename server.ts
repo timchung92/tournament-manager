@@ -162,11 +162,24 @@ app.get('/api/tournaments/:tournamentId/teams', async (req, res) => {
 
 app.post('/api/tournaments/:tournamentId/teams', async (req, res) => {
   try {
-    const { name, players } = req.body;
+    const { name, players, isCheckedIn = false } = req.body;
+    const tournamentId = req.params.tournamentId;
+    
+    // Get the highest team number for this tournament
+    const highestTeam = await prisma.team.findFirst({
+      where: { tournamentId },
+      orderBy: { teamNumber: 'desc' },
+      select: { teamNumber: true }
+    });
+    
+    const nextTeamNumber = highestTeam ? highestTeam.teamNumber + 1 : 1;
+    
     const team = await prisma.team.create({
       data: {
         name,
-        tournamentId: req.params.tournamentId,
+        teamNumber: nextTeamNumber,
+        tournamentId,
+        isCheckedIn,
         players: {
           create: players,
         },
@@ -181,7 +194,7 @@ app.post('/api/tournaments/:tournamentId/teams', async (req, res) => {
 
 app.put('/api/teams/:teamId', async (req, res) => {
   try {
-    const { name, players } = req.body;
+    const { name, players, isCheckedIn } = req.body;
     const teamId = req.params.teamId;
 
     // Update team and replace players
@@ -189,6 +202,7 @@ app.put('/api/teams/:teamId', async (req, res) => {
       where: { id: teamId },
       data: {
         name,
+        isCheckedIn,
         players: {
           deleteMany: {},
           create: players,

@@ -123,9 +123,10 @@ export function BracketVisualization({ matches, leaderboard }: BracketVisualizat
                         <div className="team-info">
                           {match.teamA ? (
                             <>
+                              <span className="team-number">#{(match.teamA as any).teamNumber}</span>
                               <span className="team-name">{match.teamA.name}</span>
                               <Badge variant="outline" className="team-seed">
-                                {getTeamSeed(match.teamAId)}
+                                Seed {getTeamSeed(match.teamAId)}
                               </Badge>
                             </>
                           ) : (
@@ -144,9 +145,10 @@ export function BracketVisualization({ matches, leaderboard }: BracketVisualizat
                         <div className="team-info">
                           {match.teamB ? (
                             <>
+                              <span className="team-number">#{(match.teamB as any).teamNumber}</span>
                               <span className="team-name">{match.teamB.name}</span>
                               <Badge variant="outline" className="team-seed">
-                                {getTeamSeed(match.teamBId)}
+                                Seed {getTeamSeed(match.teamBId)}
                               </Badge>
                             </>
                           ) : (
@@ -220,7 +222,10 @@ export function BracketVisualization({ matches, leaderboard }: BracketVisualizat
                 
                 return winnerTeam ? (
                   <>
-                    <div className="champion-name">{winnerTeam.name}</div>
+                    <div className="champion-name">
+                      <span className="team-number">#{(winnerTeam as any).teamNumber}</span>
+                      <span>{winnerTeam.name}</span>
+                    </div>
                     <Badge variant="outline" className="champion-seed">
                       Seed {getTeamSeed(winner)}
                     </Badge>

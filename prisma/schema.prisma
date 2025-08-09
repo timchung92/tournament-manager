@@ -38,12 +38,16 @@ model Player {
 model Team {
   id           String        @id @default(cuid())
   name         String
+  teamNumber   Int
   tournamentId String
   tournament   Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   players      Player[]
   matchesAsTeamA Match[]     @relation("TeamA")
   matchesAsTeamB Match[]     @relation("TeamB")
+  isCheckedIn  Boolean       @default(false)
   createdAt    DateTime      @default(now())
+
+  @@unique([tournamentId, teamNumber])
 }
 
 model Match {

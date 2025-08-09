@@ -597,12 +597,14 @@ function SeedRoundPage() {
                       </div>
                       {!isEditing && match ? (
                         <div className="text-xs space-y-1">
-                          <div className="text-gray-700 font-medium">
-                            {(match as any).teamA?.name}
+                          <div className="text-gray-700">
+                            <span className="font-bold text-gray-900 mr-1">#{(match as any).teamA?.teamNumber}</span>
+                            <span className="text-gray-600">{(match as any).teamA?.name}</span>
                           </div>
                           <div className="text-xs text-gray-500">vs</div>
-                          <div className="text-gray-700 font-medium">
-                            {(match as any).teamB?.name}
+                          <div className="text-gray-700">
+                            <span className="font-bold text-gray-900 mr-1">#{(match as any).teamB?.teamNumber}</span>
+                            <span className="text-gray-600">{(match as any).teamB?.name}</span>
                           </div>
                           <div className="flex gap-1 mt-1">
                             <Button
@@ -674,9 +676,15 @@ function SeedRoundPage() {
                       className="flex items-center justify-between p-3 border rounded-lg"
                     >
                       <div className="text-sm">
-                        <div className="font-medium">{match.teamA?.name}</div>
+                        <div>
+                          <span className="font-bold text-gray-900 mr-1">#{match.teamA?.teamNumber}</span>
+                          <span className="text-gray-600">{match.teamA?.name}</span>
+                        </div>
                         <div className="text-xs text-muted-foreground">vs</div>
-                        <div className="font-medium">{match.teamB?.name}</div>
+                        <div>
+                          <span className="font-bold text-gray-900 mr-1">#{match.teamB?.teamNumber}</span>
+                          <span className="text-gray-600">{match.teamB?.name}</span>
+                        </div>
                       </div>
                       {availableCourtNumbers.length > 0 ? (
                         <select
@@ -758,9 +766,15 @@ function SeedRoundPage() {
                   {seedMatches.map((match: any) => (
                     <TableRow key={match.id}>
                       <TableCell>
-                        <div className="font-medium">{match.teamA?.name}</div>
+                        <div>
+                          <span className="font-bold text-gray-900 mr-1">#{match.teamA?.teamNumber}</span>
+                          <span className="text-gray-600">{match.teamA?.name}</span>
+                        </div>
                         <div className="text-xs text-muted-foreground">vs</div>
-                        <div className="font-medium">{match.teamB?.name}</div>
+                        <div>
+                          <span className="font-bold text-gray-900 mr-1">#{match.teamB?.teamNumber}</span>
+                          <span className="text-gray-600">{match.teamB?.name}</span>
+                        </div>
                       </TableCell>
                       <TableCell>{getMatchStatus(match)}</TableCell>
                       <TableCell>
@@ -978,11 +992,11 @@ function SeedRoundPage() {
           {editScoreModal.match && (
             <div className="space-y-4 py-4">
               <div className="text-center text-sm text-muted-foreground mb-4">
-                {(editScoreModal.match as any).teamA?.name} vs {(editScoreModal.match as any).teamB?.name}
+                <span className="font-bold text-gray-900">#{(editScoreModal.match as any).teamA?.teamNumber}</span> {(editScoreModal.match as any).teamA?.name} vs <span className="font-bold text-gray-900">#{(editScoreModal.match as any).teamB?.teamNumber}</span> {(editScoreModal.match as any).teamB?.name}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-team-a-score">
-                  {(editScoreModal.match as any).teamA?.name} Score
+                  <span className="font-bold text-gray-900">#{(editScoreModal.match as any).teamA?.teamNumber}</span> {(editScoreModal.match as any).teamA?.name} Score
                 </Label>
                 <Input
                   id="edit-team-a-score"
@@ -996,7 +1010,7 @@ function SeedRoundPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-team-b-score">
-                  {(editScoreModal.match as any).teamB?.name} Score
+                  <span className="font-bold text-gray-900">#{(editScoreModal.match as any).teamB?.teamNumber}</span> {(editScoreModal.match as any).teamB?.name} Score
                 </Label>
                 <Input
                   id="edit-team-b-score"
@@ -1048,7 +1062,7 @@ function SeedRoundPage() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="team-a-score">
-                  {(scoreModal.match as any).teamA?.name} Score
+                  <span className="font-bold text-gray-900">#{(scoreModal.match as any).teamA?.teamNumber}</span> {(scoreModal.match as any).teamA?.name} Score
                 </Label>
                 <Input
                   id="team-a-score"
@@ -1062,7 +1076,7 @@ function SeedRoundPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="team-b-score">
-                  {(scoreModal.match as any).teamB?.name} Score
+                  <span className="font-bold text-gray-900">#{(scoreModal.match as any).teamB?.teamNumber}</span> {(scoreModal.match as any).teamB?.name} Score
                 </Label>
                 <Input
                   id="team-b-score"

@@ -519,9 +519,15 @@ function BracketPage() {
                     {isOccupied && match && (
                       <CardContent>
                         <div className="text-sm space-y-1">
-                          <div className="font-medium">{match.teamA?.name}</div>
+                          <div>
+                            <span className="font-bold text-gray-900 mr-1">#{(match.teamA as any)?.teamNumber}</span>
+                            <span className="text-gray-600">{match.teamA?.name}</span>
+                          </div>
                           <div className="text-muted-foreground">vs</div>
-                          <div className="font-medium">{match.teamB?.name}</div>
+                          <div>
+                            <span className="font-bold text-gray-900 mr-1">#{(match.teamB as any)?.teamNumber}</span>
+                            <span className="text-gray-600">{match.teamB?.name}</span>
+                          </div>
                         </div>
                       </CardContent>
                     )}
@@ -584,8 +590,15 @@ function BracketPage() {
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
                             <div className="flex-1">
-                              <span className="font-medium">
-                                {match.teamA ? match.teamA.name : 'TBD'}
+                              <span>
+                                {match.teamA ? (
+                                  <>
+                                    <span className="font-bold text-gray-900 mr-1">#{(match.teamA as any).teamNumber}</span>
+                                    <span className="text-gray-600">{match.teamA.name}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-gray-500">TBD</span>
+                                )}
                               </span>
                               {match.teamA && (
                                 <Badge variant="outline" className="ml-2 text-xs">
@@ -602,8 +615,15 @@ function BracketPage() {
                           <div className="border-t pt-3">
                             <div className="flex justify-between items-center">
                               <div className="flex-1">
-                                <span className="font-medium">
-                                  {match.teamB ? match.teamB.name : 'TBD'}
+                                <span>
+                                  {match.teamB ? (
+                                    <>
+                                      <span className="font-bold text-gray-900 mr-1">#{(match.teamB as any).teamNumber}</span>
+                                      <span className="text-gray-600">{match.teamB.name}</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-500">TBD</span>
+                                  )}
                                 </span>
                                 {match.teamB && (
                                   <Badge variant="outline" className="ml-2 text-xs">
@@ -754,7 +774,11 @@ function BracketPage() {
             <div className="space-y-4 py-4">
               <div>
                 <Label htmlFor="team-a-score">
-                  {selectedMatch.teamA?.name} Score
+                  {selectedMatch.teamA && (
+                    <>
+                      <span className="font-bold text-gray-900">#{(selectedMatch.teamA as any).teamNumber}</span> <span className="text-gray-600">{selectedMatch.teamA.name}</span>
+                    </>
+                  )} Score
                 </Label>
                 <Input
                   id="team-a-score"
@@ -767,7 +791,11 @@ function BracketPage() {
               </div>
               <div>
                 <Label htmlFor="team-b-score">
-                  {selectedMatch.teamB?.name} Score
+                  {selectedMatch.teamB && (
+                    <>
+                      <span className="font-bold text-gray-900">#{(selectedMatch.teamB as any).teamNumber}</span> <span className="text-gray-600">{selectedMatch.teamB.name}</span>
+                    </>
+                  )} Score
                 </Label>
                 <Input
                   id="team-b-score"
@@ -834,7 +862,19 @@ function BracketPage() {
                   )}
                 </div>
                 <div className="text-sm text-gray-500">
-                  <p>{selectedMatch.teamA?.name} vs {selectedMatch.teamB?.name}</p>
+                  <p>
+                    {selectedMatch.teamA && (
+                      <>
+                        <span className="font-bold text-gray-900">#{(selectedMatch.teamA as any).teamNumber}</span> <span className="text-gray-600">{selectedMatch.teamA.name}</span>
+                      </>
+                    )}
+                    {' vs '}
+                    {selectedMatch.teamB && (
+                      <>
+                        <span className="font-bold text-gray-900">#{(selectedMatch.teamB as any).teamNumber}</span> <span className="text-gray-600">{selectedMatch.teamB.name}</span>
+                      </>
+                    )}
+                  </p>
                 </div>
               </div>
             );

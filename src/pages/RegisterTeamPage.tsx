@@ -25,7 +25,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "../components/ui/dialog";
-import { Trash2, ChevronDown, Edit, Search, ChevronUp } from "lucide-react";
+import { Trash2, ChevronDown, Edit, Search, ChevronUp, CheckCircle2 } from "lucide-react";
 
 interface Player {
   id: string;
@@ -39,7 +39,9 @@ interface Player {
 interface Team {
   id: string;
   name: string;
+  teamNumber: number;
   players: Player[];
+  isCheckedIn: boolean;
 }
 
 interface PlayerFormData {
@@ -63,13 +65,14 @@ function RegisterTeamPage() {
   const [deleting, setDeleting] = useState(false);
   const [showOptionalFields, setShowOptionalFields] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"teamName" | "player1" | "player2">(
-    "teamName"
+  const [sortBy, setSortBy] = useState<"teamNumber" | "teamName" | "player1" | "player2">(
+    "teamNumber"
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Form state
   const [teamName, setTeamName] = useState("");
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [player1, setPlayer1] = useState<PlayerFormData>({
     name: "",
     email: "",
@@ -113,6 +116,7 @@ function RegisterTeamPage() {
 
   const resetForm = () => {
     setTeamName("");
+    setIsCheckedIn(false);
     setPlayer1({
       name: "",
       email: "",
@@ -139,6 +143,7 @@ function RegisterTeamPage() {
   const openEditSheet = (team: Team) => {
     setEditingTeam(team);
     setTeamName(team.name);
+    setIsCheckedIn(team.isCheckedIn);
     const [p1, p2] = team.players;
     setPlayer1({
       name: p1.name,
@@ -176,6 +181,7 @@ function RegisterTeamPage() {
     try {
       const teamData = {
         name: generatedTeamName,
+        isCheckedIn,
         players: [
           {
             ...player1,
@@ -226,7 +232,7 @@ function RegisterTeamPage() {
     setter((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSort = (column: "teamName" | "player1" | "player2") => {
+  const handleSort = (column: "teamNumber" | "teamName" | "player1" | "player2") => {
     if (sortBy === column) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
@@ -247,10 +253,14 @@ function RegisterTeamPage() {
       );
     })
     .sort((a, b) => {
-      let aValue: string;
-      let bValue: string;
+      let aValue: string | number;
+      let bValue: string | number;
 
       switch (sortBy) {
+        case "teamNumber":
+          aValue = a.teamNumber;
+          bValue = b.teamNumber;
+          break;
         case "teamName":
           aValue = a.name;
           bValue = b.name;
@@ -267,7 +277,9 @@ function RegisterTeamPage() {
           return 0;
       }
 
-      const comparison = aValue.localeCompare(bValue);
+      const comparison = typeof aValue === "string" && typeof bValue === "string" 
+        ? aValue.localeCompare(bValue)
+        : (aValue as number) - (bValue as number);
       return sortOrder === "asc" ? comparison : -comparison;
     });
 
@@ -352,6 +364,20 @@ function RegisterTeamPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-16">
+                  <button
+                    onClick={() => handleSort("teamNumber")}
+                    className="flex items-center space-x-1 font-medium text-left hover:text-gray-900"
+                  >
+                    <span>#</span>
+                    {sortBy === "teamNumber" &&
+                      (sortOrder === "asc" ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      ))}
+                  </button>
+                </TableHead>
                 <TableHead>
                   <button
                     onClick={() => handleSort("teamName")}
@@ -400,7 +426,17 @@ function RegisterTeamPage() {
             <TableBody>
               {filteredAndSortedTeams.map((team) => (
                 <TableRow key={team.id}>
-                  <TableCell className="font-medium">{team.name}</TableCell>
+                  <TableCell className="text-center font-medium text-gray-600">
+                    {team.teamNumber}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center space-x-2">
+                      <span>{team.name}</span>
+                      {team.isCheckedIn && (
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      )}
+                    </div>
+                  </TableCell>
                   {team.players.map((player, index) => (
                     <TableCell key={player.id}>
                       <div>
@@ -476,6 +512,27 @@ function RegisterTeamPage() {
                 </div>
               </div>
             )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Check-in Status
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="checkin-status"
+                  checked={isCheckedIn}
+                  onChange={(e) => setIsCheckedIn(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label
+                  htmlFor="checkin-status"
+                  className="text-sm text-gray-700"
+                >
+                  Team is checked in
+                </label>
+              </div>
+            </div>
 
             {[
               { player: player1, num: 1 as const },
